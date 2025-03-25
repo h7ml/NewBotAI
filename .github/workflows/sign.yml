@@ -1,0 +1,63 @@
+name: NewBotAI 自动签到
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每天UTC时间0点运行（北京时间8点）
+  workflow_dispatch:  # 允许手动触发工作流
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+        
+      - name: 设置Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+          
+      - name: 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: 安装Chrome浏览器
+        run: |
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+      
+      - name: 安装Playwright浏览器
+        run: |
+          playwright install chromium
+      
+      - name: 检查是否存在账号配置
+        id: check_secrets
+        run: |
+          if [ -n "${{ secrets.NEWBOTAI_ACCOUNTS }}" ]; then
+            echo "has_accounts=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_accounts=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: 合并环境变量账号到配置文件
+        if: steps.check_secrets.outputs.has_accounts == 'true'
+        run: |
+          python scripts/update_config.py
+        env:
+          NEWBOTAI_ACCOUNTS: ${{ secrets.NEWBOTAI_ACCOUNTS }}
+      
+      - name: 运行签到脚本
+        if: steps.check_secrets.outputs.has_accounts == 'true'
+        run: |
+          python main.py sign
+          
+      - name: 提示缺少账号配置
+        if: steps.check_secrets.outputs.has_accounts == 'false'
+        run: |
+          echo "未检测到NEWBOTAI_ACCOUNTS环境变量，跳过签到流程"
+          echo "请在仓库的Settings -> Secrets and variables -> Actions中添加NEWBOTAI_ACCOUNTS密钥"

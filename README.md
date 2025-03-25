@@ -16,6 +16,7 @@
 - 支持自定义浏览器配置
 - 详细的日志记录
 - 命令行统一管理工具
+- 灵活的账号配置管理
 
 ## 安装依赖
 
@@ -54,6 +55,7 @@ accounts:
    - 配置文件使用追加模式，不会覆盖已有账号
    - 成功注册的新账号会自动追加到配置文件
    - 如果配置文件不存在，则会自动创建
+   - 可以通过命令行工具管理账号配置
 
 ## 使用方法
 
@@ -70,6 +72,33 @@ python main.py register --num-accounts 100 --show-browser
 
 # 执行签到
 python main.py sign
+
+# 账号配置管理
+python main.py config add -u username1 -p password1  # 添加单个账号
+python main.py config add -f accounts.csv  # 批量导入账号
+python main.py config list  # 列出所有配置的账号
+python main.py config clear --confirm  # 清空所有账号
+```
+
+### 账号配置管理
+
+管理config.yaml中的账号配置：
+
+```bash
+# 添加单个账号
+python main.py config add -u username1 -p password1
+
+# 从文件批量导入账号
+# 文件格式支持：
+# 1. 每行一个用户名（将使用默认密码）
+# 2. 每行格式为 "username,password"
+python main.py config add -f accounts.txt --default-password mypassword
+
+# 列出所有已配置账号
+python main.py config list
+
+# 清空所有账号配置（需要确认）
+python main.py config clear --confirm
 ```
 
 ### 账号注册
@@ -120,27 +149,27 @@ python sign.py
 
 ### main.py 参数
 
-```
-register             批量注册账号
-  --show-browser     显示浏览器窗口（默认为无头模式）
-  --num-accounts N   要注册的账号数量（默认1000个）
+## GitHub Actions 自动签到
 
-sign                 执行自动签到
-```
+本项目支持使用GitHub Actions自动执行每日签到任务。
 
-### register.py 参数
+### 配置步骤
 
-```
---show-browser    显示浏览器窗口（默认为无头模式）
---num-accounts    要注册的账号数量（默认1000个）
-```
+1. Fork本仓库到你的GitHub账号
+2. 在仓库的Settings -> Secrets and variables -> Actions中添加以下Secret:
+   - `NEWBOTAI_ACCOUNTS`: 包含账号信息的JSON数组，格式如下：
 
-## 注意事项
+     ```json
+     [
+       {"username": "账号1", "password": "密码1"},
+       {"username": "账号2", "password": "密码2"}
+     ]
+     ```
 
-1. 请确保配置文件中的账户信息正确
-2. 建议不要将配置文件提交到代码仓库（已加入.gitignore）
-3. 可以根据需要调整浏览器配置参数
-4. 如遇到问题，请查看日志文件了解详细信息
-5. 批量注册时建议使用无头模式，速度更快
-6. 签到脚本会自动记录每日签到结果
-7. 优先使用main.py命令行工具，它提供了统一的接口
+3. GitHub Actions将按照预设的时间（每天UTC 0点，北京时间8点）自动运行签到脚本
+4. 你也可以在Actions页面手动触发工作流运行
+
+### 查看运行结果
+
+- 在仓库的Actions标签页可以查看每次运行的详细日志
+- 每次成功运行后，签到结果将记录在日志中
