@@ -1,0 +1,153 @@
+name: Auto Update Tokens
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每6小时执行一次
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  update-tokens:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 写入仓库内容
+      issues: write # 管理 issues
+      pull-requests: write # 管理 pull requests
+      actions: write # 修改 Actions 工作流
+      discussions: write # 写入讨论区
+      statuses: write # 更新 commit 状态
+      packages: write # 上传、删除包
+      pages: write # 发布 GitHub Pages
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: main
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyyaml
+        
+    - name: Create config directory
+      run: |
+        mkdir -p scripts/logs
+        
+    # - name: Setup config file
+    #   run: |
+    #     echo "accounts:" > scripts/config.yaml
+    #     echo "  - username: ${{ secrets.USERNAME }}" >> scripts/config.yaml
+    #     echo "    password: ${{ secrets.PASSWORD }}" >> scripts/config.yaml
+        
+    # - name: Run cookie script
+    #   run: |
+    #     cd scripts
+    #     python useCookie.py
+        
+    - name: Run token script
+      run: |
+        python get_token.py
+        
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@h7ml.cn"
+        git config --local user.name "GitHub Action"
+        git config --local core.autocrlf false
+        git config --local core.safecrlf false
+        git config advice.ignoredHook false
+
+    - name: Commit and Push
+      id: commit
+      run: |
+        # 检查是否有变更
+        if [[ -n $(git status --porcelain) ]]; then
+          echo "检测到文件变更，准备提交..."
+          
+          # 设置错误处理
+          set -e
+          
+          # 获取当前时间戳
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          # 准备提交信息
+          COMMIT_MSG="feat(token): 自动更新 token 数据
+
+          * 更新时间: $TIMESTAMP
+          * 触发事件: ${{ github.event_name }}
+          
+          [skip ci]"
+          
+          # 提交变更
+          echo "提交变更..."
+          git add token.md
+          git commit -m "$COMMIT_MSG"
+          
+          # 尝试推送，如果失败则先拉取最新代码
+          echo "推送到远程仓库..."
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if git push origin main; then
+              echo "成功推送到远程仓库"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                echo "错误：推送失败，已达到最大重试次数"
+                exit 1
+              fi
+              echo "推送失败，正在进行第 $RETRY_COUNT 次重试..."
+              git pull --rebase origin main
+            fi
+          done
+          
+          # 获取最新的 commit SHA
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "Commit SHA: $COMMIT_SHA"
+          
+          # 处理 token 报告
+          md_file="token.md"
+          if [ -f "$md_file" ]; then
+            echo "正在添加 token 报告作为提交评论..."
+            
+            # 读取并处理报告内容
+            if REPORT_CONTENT=$(cat "$md_file" | sed 's/"/\\"/g' | sed 's/\\/\\\\/g' | sed 's/\$/\\$/g' | sed ':a;N;$!ba;s/\n/\\n/g'); then
+              # 构建 API 请求体
+              REQUEST_BODY="{\"body\":\"# Token 更新报告\\n\\n$REPORT_CONTENT\"}"
+              
+              # 发送 API 请求
+              RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github.v3+json" \
+                -H "Content-Type: application/json" \
+                -d "$REQUEST_BODY" \
+                "https://api.github.com/repos/${{ github.repository }}/commits/$COMMIT_SHA/comments")
+              
+              # 检查响应状态
+              HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+              if [ "$HTTP_STATUS" -eq 201 ]; then
+                echo "成功添加提交评论"
+              else
+                echo "警告：添加提交评论失败 (HTTP $HTTP_STATUS)"
+                echo "响应内容："
+                echo "$RESPONSE" | sed '$d'
+              fi
+            else
+              echo "警告：读取 token 报告文件失败"
+            fi
+          else
+            echo "提示：未找到 token 报告文件"
+          fi
+          
+        else
+          echo "没有检测到文件变更，跳过提交"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
