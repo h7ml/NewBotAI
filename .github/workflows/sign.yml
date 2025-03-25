@@ -54,6 +54,9 @@ jobs:
       - name: 运行签到脚本
         if: steps.check_secrets.outputs.has_accounts == 'true'
         run: |
+          # 添加一些环境设置来帮助Chrome运行
+          export DISPLAY=:99
+          sudo Xvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
           python main.py sign
           
       - name: 提示缺少账号配置

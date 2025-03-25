@@ -17,6 +17,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import atexit
+import tempfile
 
 class Logger:
     def __init__(self, name='NewBotAI'):
@@ -145,6 +146,11 @@ class NewBotAISignIn:
             options.add_argument('--disable-extensions')  # 禁用扩展
             options.add_argument('--disable-popup-blocking')  # 禁用弹窗拦截
             options.add_argument('--window-size=1366,768')  # 设置窗口大小
+            
+            # 为GitHub Actions环境添加临时用户数据目录
+            temp_dir = tempfile.mkdtemp()
+            options.add_argument(f'--user-data-dir={temp_dir}')
+            self.logger.info(f"设置临时用户数据目录: {temp_dir}")
             
             # 设置 User-Agent
             options.add_argument('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36')
