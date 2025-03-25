@@ -1,0 +1,6 @@
+DrissionPage>=4.0.0
+PyYAML>=6.0.1
+python-dateutil>=2.8.2 
+selenium>=4.10.0
+playwright>=1.36.0
+webdriver-manager>=4.0.0 
