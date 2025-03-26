@@ -166,7 +166,9 @@ jobs:
                   exit 1
                 fi
                 echo "推送失败，正在进行第 $RETRY_COUNT 次重试..."
-                git pull --rebase origin main
+                git stash  # 暂存当前更改
+                git pull --rebase origin main  # 拉取并变基
+                git stash pop  # 恢复更改
               fi
             done
             

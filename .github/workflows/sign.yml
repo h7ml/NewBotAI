@@ -87,12 +87,25 @@ jobs:
             SKIP_CI="[skip ci]"
             COMMIT_MSG="$TITLE\n\n- $UPDATE_TIME\n- $EVENT\n\n$SKIP_CI"
             
+            # 先拉取最新代码，避免冲突
+            echo "拉取最新代码..."
+            git fetch origin main
+            
+            # 保存当前更改
+            git stash -u || true
+            
+            # 更新本地main分支
+            git merge origin/main || true
+            
+            # 恢复更改
+            git stash pop || true
+            
             # 提交变更
             echo "提交变更..."
             git add .  
-            git commit -m "$COMMIT_MSG"
+            git commit -m "$COMMIT_MSG" || echo "没有新的变更需要提交"
             
-            # 尝试推送，如果失败则先拉取最新代码
+            # 尝试推送，如果失败则先拉取最新代码并合并
             echo "推送到远程仓库..."
             MAX_RETRIES=3
             RETRY_COUNT=0
@@ -108,7 +121,21 @@ jobs:
                   exit 1
                 fi
                 echo "推送失败，正在进行第 $RETRY_COUNT 次重试..."
-                git pull --rebase origin main
+                
+                # 使用 git pull 而不是 rebase 来处理冲突
+                git pull origin main
+                # 如果存在冲突，尝试自动解决
+                if [[ -n $(git diff --name-only --diff-filter=U) ]]; then
+                  echo "检测到合并冲突，尝试解决..."
+                  # 对于 sign.md 文件，保留当前更新
+                  if git diff --name-only --diff-filter=U | grep -q "sign.md"; then
+                    echo "解决 sign.md 冲突..."
+                    git checkout --ours sign.md
+                    git add sign.md
+                  fi
+                  # 尝试完成合并
+                  git commit -m "Merge remote changes [skip ci]" || echo "无需合并"
+                fi
               fi
             done
             
