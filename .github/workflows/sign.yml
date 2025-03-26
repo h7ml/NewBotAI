@@ -89,8 +89,7 @@ jobs:
             
             # 提交变更
             echo "提交变更..."
-            git add sign.md
-            git pull --rebase origin main
+            git add .  
             git commit -m "$COMMIT_MSG"
             
             # 尝试推送，如果失败则先拉取最新代码
