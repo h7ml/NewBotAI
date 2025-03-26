@@ -2,12 +2,14 @@ name: Auto Update Tokens
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 每6小时执行一次
+    - cron: '0 0 * * *'  # 每天UTC时间0点运行（北京时间8点）
   workflow_dispatch:  # 允许手动触发
 
 jobs:
   update-tokens:
     runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai  # 设置时区为东八区
     permissions:
       contents: write # 写入仓库内容
       issues: write # 管理 issues
@@ -38,19 +40,10 @@ jobs:
       run: |
         mkdir -p scripts/logs
         
-    # - name: Setup config file
-    #   run: |
-    #     echo "accounts:" > scripts/config.yaml
-    #     echo "  - username: ${{ secrets.USERNAME }}" >> scripts/config.yaml
-    #     echo "    password: ${{ secrets.PASSWORD }}" >> scripts/config.yaml
-        
-    # - name: Run cookie script
-    #   run: |
-    #     cd scripts
-    #     python useCookie.py
-        
     - name: Run token script
       run: |
+        # 输出当前时间（东八区）
+        echo "当前时间：$(date '+%Y-%m-%d %H:%M:%S')"
         python get_token.py
         
     - name: Configure Git
@@ -71,8 +64,8 @@ jobs:
           # 设置错误处理
           set -e
           
-          # 获取当前时间戳
-          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          # 获取当前时间戳（东八区）
+          TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S CST")
           
           # 准备提交信息
           COMMIT_MSG="feat(token): 自动更新 token 数据
@@ -116,17 +109,17 @@ jobs:
           if [ -f "$md_file" ]; then
             echo "正在添加 token 报告作为提交评论..."
             
-            # 读取并处理报告内容
-            if REPORT_CONTENT=$(cat "$md_file" | sed 's/"/\\"/g' | sed 's/\\/\\\\/g' | sed 's/\$/\\$/g' | sed ':a;N;$!ba;s/\n/\\n/g'); then
-              # 构建 API 请求体
-              REQUEST_BODY="{\"body\":\"# Token 更新报告\\n\\n$REPORT_CONTENT\"}"
-              
-              # 发送 API 请求
+            # 使用通用Markdown处理脚本生成JSON
+            python .github/workflows/scripts/process_token.py "$md_file" > comment_body.json
+            
+            # 检查脚本是否成功执行
+            if [ $? -eq 0 ]; then
+              # 使用生成的JSON文件发送请求
               RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
                 -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                 -H "Accept: application/vnd.github.v3+json" \
                 -H "Content-Type: application/json" \
-                -d "$REQUEST_BODY" \
+                --data @comment_body.json \
                 "https://api.github.com/repos/${{ github.repository }}/commits/$COMMIT_SHA/comments")
               
               # 检查响应状态
@@ -139,8 +132,11 @@ jobs:
                 echo "$RESPONSE" | sed '$d'
               fi
             else
-              echo "警告：读取 token 报告文件失败"
+              echo "警告：生成评论JSON失败"
             fi
+            
+            # 清理临时文件
+            rm -f comment_body.json
           else
             echo "提示：未找到 token 报告文件"
           fi
