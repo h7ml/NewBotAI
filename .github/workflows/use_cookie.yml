@@ -1,0 +1,145 @@
+name: NewBotAI 自动获取Cookie
+
+on:
+  # schedule:
+  #   - cron: '0 12 * * *'  # 每天UTC时间12点运行（北京时间20点）
+  workflow_dispatch:  # 允许手动触发工作流
+
+jobs:
+  get-cookies:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai  # 设置时区为东八区
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+        
+      - name: 设置Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+          
+      - name: 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: 检查是否存在账号配置
+        id: check_config
+        run: |
+          if [ -f "config.yaml" ]; then
+            echo "has_config=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_config=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: 检查环境变量账号
+        id: check_secrets
+        run: |
+          if [ -n "${{ secrets.NEWBOTAI_ACCOUNTS }}" ]; then
+            echo "has_accounts=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_accounts=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: 合并环境变量账号到配置文件
+        if: steps.check_secrets.outputs.has_accounts == 'true'
+        run: |
+          python scripts/update_config.py
+        env:
+          NEWBOTAI_ACCOUNTS: ${{ secrets.NEWBOTAI_ACCOUNTS }}
+          
+      - name: 检查最终配置
+        id: final_check
+        run: |
+          if [ -f "config.yaml" ] && [ $(grep -c "username" config.yaml) -gt 0 ]; then
+            echo "config_valid=true" >> $GITHUB_OUTPUT
+          else
+            echo "config_valid=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: 运行获取Cookie脚本
+        if: steps.final_check.outputs.config_valid == 'true'
+        run: |
+          # 输出当前时间（东八区）
+          echo "当前时间：$(date '+%Y-%m-%d %H:%M:%S')"
+          
+          # 确保日志目录存在
+          mkdir -p logs
+          
+          # 运行脚本
+          python useCookie.py
+          
+          # 检查结果
+          if [ -f "cookies_only.json" ]; then
+            echo "成功生成 cookies_only.json 文件"
+          else
+            echo "警告：未能生成 cookies_only.json 文件"
+          fi
+          
+      - name: 提示缺少账号配置
+        if: steps.final_check.outputs.config_valid == 'false'
+        run: |
+          echo "未检测到有效的账号配置，跳过获取Cookie流程"
+          echo "请确保config.yaml文件存在并包含有效账号，或在仓库的Settings -> Secrets and variables -> Actions中添加NEWBOTAI_ACCOUNTS密钥"
+      
+      - name: 配置Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git config --local core.autocrlf false
+          git config --local core.safecrlf false
+          git config advice.ignoredHook false
+    
+      - name: 提交并推送变更
+        id: commit
+        run: |
+          # 检查是否有变更
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "检测到文件变更，准备提交..."
+            
+            # 设置错误处理
+            set -e
+            
+            # 获取当前时间戳（东八区）
+            TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S CST")
+            
+            # 准备提交信息
+            TITLE="feat(cookie): 自动更新Cookie"
+            UPDATE_TIME="更新时间: $TIMESTAMP"
+            EVENT="触发事件: ${{ github.event_name }}"
+            SKIP_CI="[skip ci]"
+            COMMIT_MSG="$TITLE\n\n- $UPDATE_TIME\n- $EVENT\n\n$SKIP_CI"
+            
+            # 提交变更
+            echo "提交变更..."
+            git add cookies_only.json cookies_results.json logs/cookies.log
+            git commit -m "$COMMIT_MSG"
+            
+            # 尝试推送，如果失败则先拉取最新代码
+            echo "推送到远程仓库..."
+            MAX_RETRIES=3
+            RETRY_COUNT=0
+            
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              if git push origin main; then
+                echo "成功推送到远程仓库"
+                break
+              else
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                  echo "错误：推送失败，已达到最大重试次数"
+                  exit 1
+                fi
+                echo "推送失败，正在进行第 $RETRY_COUNT 次重试..."
+                git pull --rebase origin main
+              fi
+            done
+            
+          else
+            echo "没有检测到文件变更，跳过提交"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
