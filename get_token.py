@@ -235,8 +235,18 @@ def main():
         except Exception as e:
             logging.error(f"清空token.md文件失败: {str(e)}")
         
+        # 计算总账号数量和初始化已处理数量
+        total_accounts = len(cookies)
+        processed_accounts = 0
+        
         is_first = True  # 标记是否是第一次写入
         for username, cookie_data in cookies.items():
+            # 更新处理进度
+            processed_accounts += 1
+            progress_percentage = (processed_accounts / total_accounts) * 100
+            progress_message = f"处理进度: {processed_accounts}/{total_accounts} {progress_percentage:.1f}%"
+            logging.info(progress_message)
+            
             session = cookie_data.get('cookies', {}).get('session')
             if not session:
                 logging.warning(f"账号 {username} 未找到session")
