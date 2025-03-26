@@ -56,8 +56,13 @@ jobs:
         run: |
           if [ -f "config.yaml" ] && [ $(grep -c "username" config.yaml) -gt 0 ]; then
             echo "config_valid=true" >> $GITHUB_OUTPUT
+            # 获取账号数量
+            ACCOUNT_COUNT=$(grep -c "username" config.yaml)
+            echo "账号总数: $ACCOUNT_COUNT"
+            echo "account_count=$ACCOUNT_COUNT" >> $GITHUB_OUTPUT
           else
             echo "config_valid=false" >> $GITHUB_OUTPUT
+            echo "account_count=0" >> $GITHUB_OUTPUT
           fi
       
       - name: 运行获取Cookie脚本
@@ -69,12 +74,28 @@ jobs:
           # 确保日志目录存在
           mkdir -p logs
           
-          # 运行脚本
-          python useCookie.py
+          # 设置固定的超时时间为20分钟(1200秒)
+          TIMEOUT_SECONDS=1200
+          echo "设置固定超时时间为20分钟(1200秒)"
+          
+          # 使用超时命令运行脚本
+          timeout $TIMEOUT_SECONDS python useCookie.py || {
+            TIMEOUT_EXIT_CODE=$?
+            if [ $TIMEOUT_EXIT_CODE -eq 124 ]; then
+              echo "警告：脚本执行超时（超过20分钟），已自动终止"
+            else
+              echo "脚本执行出错，退出代码: $TIMEOUT_EXIT_CODE"
+            fi
+          }
           
           # 检查结果
           if [ -f "cookies_only.json" ]; then
             echo "成功生成 cookies_only.json 文件"
+            # 计算成功率
+            TOTAL_ACCOUNTS=${{ steps.final_check.outputs.account_count }}
+            SUCCESSFUL_ACCOUNTS=$(grep -o '"id":' cookies_only.json | wc -l)
+            SUCCESS_RATE=$((SUCCESSFUL_ACCOUNTS * 100 / TOTAL_ACCOUNTS))
+            echo "账号总数: $TOTAL_ACCOUNTS, 成功获取Cookie数: $SUCCESSFUL_ACCOUNTS, 成功率: $SUCCESS_RATE%"
           else
             echo "警告：未能生成 cookies_only.json 文件"
           fi
@@ -110,12 +131,23 @@ jobs:
             TITLE="feat(cookie): 自动更新Cookie"
             UPDATE_TIME="更新时间: $TIMESTAMP"
             EVENT="触发事件: ${{ github.event_name }}"
-            SKIP_CI="[skip ci]"
-            COMMIT_MSG="$TITLE\n\n- $UPDATE_TIME\n- $EVENT\n\n$SKIP_CI"
+            
+            # 如果存在cookies_only.json，添加成功率信息
+            if [ -f "cookies_only.json" ] && [ -f "config.yaml" ]; then
+              TOTAL_ACCOUNTS=$(grep -c "username" config.yaml)
+              SUCCESSFUL_ACCOUNTS=$(grep -o '"id":' cookies_only.json | wc -l)
+              SUCCESS_RATE=$((SUCCESSFUL_ACCOUNTS * 100 / TOTAL_ACCOUNTS))
+              STATS="账号: $SUCCESSFUL_ACCOUNTS/$TOTAL_ACCOUNTS, 成功率: $SUCCESS_RATE%"
+              SKIP_CI="[skip ci]"
+              COMMIT_MSG="$TITLE ($STATS)\n\n- $UPDATE_TIME\n- $EVENT\n\n$SKIP_CI"
+            else
+              SKIP_CI="[skip ci]"
+              COMMIT_MSG="$TITLE\n\n- $UPDATE_TIME\n- $EVENT\n\n$SKIP_CI"
+            fi
             
             # 提交变更
             echo "提交变更..."
-            git add cookies_only.json cookies_results.json logs/cookies.log
+            git add cookies_only.json cookies_results.json logs/cookies.log || true
             git commit -m "$COMMIT_MSG"
             
             # 尝试推送，如果失败则先拉取最新代码
