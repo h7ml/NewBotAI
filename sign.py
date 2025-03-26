@@ -8,9 +8,11 @@ import yaml
 import json
 import logging
 import requests
-from datetime import datetime
+import math
+import concurrent.futures
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 class Logger:
     _instance = None
@@ -66,6 +68,19 @@ class Logger:
     def debug(self, msg):
         self.logger.debug(msg)
 
+# 全局变量用于追踪进度
+total_accounts = 0
+processed_accounts = 0
+
+# 用户代理列表
+USER_AGENTS = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.2623.75",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
+]
+
 def load_config() -> Dict:
     """加载配置文件"""
     config_path = Path('config.yaml')
@@ -109,42 +124,87 @@ def load_cookies(username: str) -> Dict:
     
     return {}
 
-def sign_in_account(username: str, cookies: Dict) -> Dict:
-    """执行签到"""
+def get_random_ip() -> str:
+    """生成随机IP地址，用于X-Forwarded-For头"""
+    return f"{random.randint(1, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(1, 254)}"
+
+def calculate_backoff_time(retries: int, base_delay: float = 5.0, max_delay: float = 60.0) -> float:
+    """根据失败次数计算指数退避等待时间"""
+    delay = min(base_delay * (2 ** retries) + random.uniform(0, 1), max_delay)
+    return delay
+
+def update_progress():
+    """更新并打印进度信息"""
+    global processed_accounts, total_accounts
+    processed_accounts += 1
+    progress = (processed_accounts / total_accounts) * 100 if total_accounts > 0 else 0
+    print(f"\r处理进度: [{processed_accounts}/{total_accounts}] {progress:.1f}%", end="", flush=True)
+    if processed_accounts == total_accounts:
+        print()  # 完成后换行
+
+def sign_in_account(username: str, cookies: Dict, batch_id: int = 0, retry_count: int = 0, max_retries: int = 3) -> Dict:
+    """执行签到，支持429限流错误重试"""
     logger = Logger()
     sign_url = 'https://openai.newbotai.cn/api/user/clock_in?turnstile='
+    
+    # 随机选择用户代理
+    user_agent = random.choice(USER_AGENTS)
+    # 生成随机IP
+    fake_ip = get_random_ip()
+    
     headers = {
         'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         'Cache-Control': 'no-store',
-        'Connection': 'keep-alive',
+        'Connection': random.choice(['keep-alive', 'close']),
         'Content-Length': '0',
         'Origin': 'https://openai.newbotai.cn',
-        'Referer': 'https://openai.newbotai.cn/profile',
+        'Referer': f'https://openai.newbotai.cn/profile?t={int(time.time())}',
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'same-origin',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+        'User-Agent': user_agent,
         'VoApi-User': cookies.get('voapi_user', ''),
         'sec-ch-ua': '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"',
         'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"macOS"'
+        'sec-ch-ua-platform': random.choice(['"macOS"', '"Windows"', '"Linux"']),
+        'X-Forwarded-For': fake_ip
     }
     
     cookies_dict = {'session': cookies.get('session', '')}
     
-    logger.info(f"签到账号: {username}，VoApi-User: {cookies.get('voapi_user', '')}")
+    if retry_count == 0:
+        logger.info(f"[批次{batch_id}] 签到账号: {username}，VoApi-User: {cookies.get('voapi_user', '')}")
+    else:
+        logger.info(f"[批次{batch_id}] 第{retry_count}次重试签到账号: {username}")
     
     try:
         response = requests.post(sign_url, headers=headers, cookies=cookies_dict)
-        logger.info(f"API响应状态码: {response.status_code}")
+        logger.info(f"[批次{batch_id}] API响应状态码: {response.status_code}")
+        
+        # 处理429限流错误
+        if response.status_code == 429:
+            if retry_count < max_retries:
+                # 指数退避策略，每次重试等待时间增加
+                wait_time = calculate_backoff_time(retry_count)
+                logger.warning(f"[批次{batch_id}] 遇到限流(429)，等待{wait_time:.1f}秒后重试...")
+                time.sleep(wait_time)
+                return sign_in_account(username, cookies, batch_id, retry_count + 1, max_retries)
+            else:
+                update_progress()  # 更新进度
+                return {
+                    'username': username,
+                    'status': '失败',
+                    'message': '达到最大重试次数，限流问题未解决'
+                }
         
         try:
             result = response.json()
-            logger.info(f"API响应内容: {result}")
+            logger.info(f"[批次{batch_id}] API响应内容: {result}")
             
             # 处理签到成功的情况
             if result.get('code') == 200 or (result.get('success') is True):
+                update_progress()  # 更新进度
                 return {
                     'username': username,
                     'status': '成功',
@@ -152,6 +212,7 @@ def sign_in_account(username: str, cookies: Dict) -> Dict:
                 }
             # 处理已经签到过的情况
             elif "已经签到过" in result.get('message', ''):
+                update_progress()  # 更新进度
                 return {
                     'username': username,
                     'status': '成功',
@@ -159,118 +220,69 @@ def sign_in_account(username: str, cookies: Dict) -> Dict:
                 }
             # 处理其他失败情况
             else:
+                update_progress()  # 更新进度
                 return {
                     'username': username,
                     'status': '失败',
                     'message': result.get('message', result.get('msg', '未知错误'))
                 }
         except ValueError:
-            logger.error(f"解析JSON响应失败: {response.text[:100]}")
+            logger.error(f"[批次{batch_id}] 解析JSON响应失败: {response.text[:100]}")
+            update_progress()  # 更新进度
             return {
                 'username': username,
                 'status': '失败',
                 'message': f"解析响应失败: {response.text[:50]}..."
             }
     except Exception as e:
-        logger.error(f"请求异常: {str(e)}")
+        logger.error(f"[批次{batch_id}] 请求异常: {str(e)}")
+        update_progress()  # 更新进度
         return {
             'username': username,
             'status': '失败',
             'message': str(e)
         }
 
-def login_account(username: str, password: str) -> Dict:
-    """登录账号并获取cookies"""
+def process_account_batch(batch: List[Tuple[str, Dict]], batch_id: int) -> List[Dict]:
+    """处理一批账号"""
     logger = Logger()
-    logger.info(f"尝试登录账号: {username}")
+    batch_results = []
     
-    url = 'https://openai.newbotai.cn/api/user/login'
-    
-    headers = {
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'zh-CN,zh;q=0.9',
-        'Cache-Control': 'no-store',
-        'Connection': 'keep-alive',
-        'Content-Type': 'application/json',
-        'Origin': 'https://openai.newbotai.cn',
-        'Referer': 'https://openai.newbotai.cn/login',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-origin',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
-        'sec-ch-ua': '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"macOS"'
-    }
-    
-    data = {
-        "username": username,
-        "password": password
-    }
-    
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        cookies = response.cookies
-        
-        if not cookies.get('session'):
-            logger.error(f"登录失败: 未获取到session")
-            return {}
-        
-        # 解析返回的数据，获取VoApi-User
-        response_json = response.json()
-        if not response_json.get('success'):
-            logger.error(f"登录失败: {response_json.get('message', '未知错误')}")
-            return {}
-        
-        user_id = response_json.get('data', {}).get('id')
-        if not user_id:
-            logger.error("登录失败: 未获取到用户ID")
-            return {}
-        
-        cookies_data = {
-            'session': cookies.get('session'),
-            'voapi_user': str(user_id)
+    for i, (username, account_data) in enumerate(batch):
+        # 获取cookies
+        cookies = {
+            'session': account_data.get('cookies', {}).get('session', ''),
+            'voapi_user': str(account_data.get('id', ''))
         }
         
-        # 更新cookies_only.json
-        save_cookies(username, cookies_data)
+        if not cookies['session'] or not cookies['voapi_user']:
+            logger.warning(f"[批次{batch_id}] 账号 {username} 的cookies不完整，跳过")
+            batch_results.append({
+                'username': username,
+                'status': '失败',
+                'message': 'cookies不完整'
+            })
+            update_progress()  # 更新进度
+            continue
         
-        logger.info(f"登录成功，获取到cookies")
-        return cookies_data
-    except Exception as e:
-        logger.error(f"登录过程出错: {str(e)}")
-        return {}
-
-def save_cookies(username: str, cookies_data: Dict) -> None:
-    """保存cookies到文件"""
-    cookies_path = Path('cookies_only.json')
+        # 执行签到
+        result = sign_in_account(username, cookies, batch_id)
+        batch_results.append(result)
+        
+        # 在批次内的账号之间添加随机延迟，避免频繁请求
+        if i < len(batch) - 1:  # 如果不是批次中的最后一个账号
+            delay = random.uniform(8, 15)  # 增加延迟时间
+            logger.info(f"[批次{batch_id}] 等待 {delay:.1f} 秒后处理下一个账号")
+            time.sleep(delay)
     
-    # 读取现有cookies
-    existing_cookies = {}
-    if cookies_path.exists():
-        try:
-            with open(cookies_path, 'r', encoding='utf-8') as f:
-                existing_cookies = json.load(f)
-        except Exception as e:
-            logger = Logger()
-            logger.error(f"读取cookies文件失败: {str(e)}")
-            existing_cookies = {}
-    
-    # 更新对应用户的cookies
-    existing_cookies[username] = {
-        'cookies': {
-            'session': cookies_data['session']
-        },
-        'id': cookies_data['voapi_user']
-    }
-    
-    # 保存到文件
-    with open(cookies_path, 'w', encoding='utf-8') as f:
-        json.dump(existing_cookies, f, indent=2, ensure_ascii=False)
+    return batch_results
 
 def log_result(results: List[Dict]):
     """记录签到结果到sign.md文件"""
     with open('sign.md', 'a', encoding='utf-8') as f:
+        # 写入当前时间
+        f.write(f"## 签到时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        
         # 写入表头
         f.write('| 账号 | 状态 | 消息 |\n')
         f.write('|------|------|------|\n')
@@ -278,6 +290,14 @@ def log_result(results: List[Dict]):
         # 写入结果
         for result in results:
             f.write(f"| {result['username']} | {result['status']} | {result['message']} |\n")
+        
+        # 写入统计信息
+        success_count = sum(1 for r in results if r['status'] == '成功')
+        fail_count = sum(1 for r in results if r['status'] == '失败')
+        f.write(f"\n- 总计: {len(results)} 个账号\n")
+        f.write(f"- 成功: {success_count} 个\n")
+        f.write(f"- 失败: {fail_count} 个\n")
+        f.write(f"- 成功率: {(success_count/len(results)*100):.1f}%\n")
 
 def main():
     # 初始化日志记录器
@@ -285,6 +305,8 @@ def main():
     logger.info("开始运行签到程序")
     
     try:
+        global total_accounts, processed_accounts
+        
         # 清空上一次的签到结果
         sign_file = Path('sign.md')
         if sign_file.exists():
@@ -299,62 +321,113 @@ def main():
             logger.error("cookies_only.json中没有可用的账号信息")
             return
         
+        # 设置全局统计变量
         total_accounts = len(available_accounts)
+        processed_accounts = 0
+        
         logger.info(f"共有 {total_accounts} 个账号需要处理")
         
-        success_count = 0
-        fail_count = 0
+        # 记录处理时间
+        start_time = time.time()
         
-        # 遍历cookies_only.json中的账号
-        sign_results = []
-        for index, (username, account_data) in enumerate(available_accounts.items(), 1):
-            logger.info(f"正在处理第 {index}/{total_accounts} 个账号: {username}")
+        # 配置参数
+        batch_size = 5  # 每批处理的账号数量
+        num_workers = 2  # 并行处理的批次数量
+        inter_batch_delay = (30, 60)  # 批次之间的延迟范围（秒）
+        
+        # 分批处理
+        batches = []
+        for i in range(0, total_accounts, batch_size):
+            batch_accounts = list(available_accounts.items())[i:i+batch_size]
+            batches.append(batch_accounts)
+        
+        logger.info(f"账号已分为 {len(batches)} 个批次，每批最多 {batch_size} 个账号")
+        
+        all_results = []
+        
+        # 显示初始进度
+        print(f"总计 {total_accounts} 个账号需要处理")
+        print(f"\r处理进度: [0/{total_accounts}] 0.0%", end="", flush=True)
+        
+        # 使用线程池并行处理批次
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+            batch_futures = {}
             
-            # 获取cookies
-            cookies = {
-                'session': account_data.get('cookies', {}).get('session', ''),
-                'voapi_user': str(account_data.get('id', ''))
-            }
+            # 启动前几个批次
+            active_batches = min(num_workers, len(batches))
+            for i in range(active_batches):
+                batch_futures[executor.submit(process_account_batch, batches[i], i)] = i
             
-            if not cookies['session'] or not cookies['voapi_user']:
-                logger.warning(f"账号 {username} 的cookies不完整，跳过")
-                sign_results.append({
-                    'username': username,
-                    'status': '失败',
-                    'message': 'cookies不完整'
-                })
-                fail_count += 1
-                continue
+            completed_batches = 0
             
-            # 执行签到
-            result = sign_in_account(username, cookies)
-            sign_results.append(result)
-            
-            status = result.get('status', '未知状态')
-            if "成功" in status:
-                success_count += 1
-                logger.info(f"账号 {username} 签到成功")
-            else:
-                fail_count += 1
-                logger.warning(f"账号 {username} 签到失败: {result.get('message', '未知错误')}")
-            
-            # 随机延迟，模拟人工操作
-            if index < total_accounts:  # 如果不是最后一个账号
-                delay = random.uniform(2, 4)
-                logger.info(f"等待 {delay:.1f} 秒后处理下一个账号")
-                time.sleep(delay)
+            # 处理完成的批次并启动新批次
+            while batch_futures:
+                # 等待一个批次完成
+                done, _ = concurrent.futures.wait(
+                    batch_futures.keys(), 
+                    return_when=concurrent.futures.FIRST_COMPLETED
+                )
+                
+                for future in done:
+                    batch_id = batch_futures[future]
+                    try:
+                        batch_results = future.result()
+                        all_results.extend(batch_results)
+                        
+                        success_count = sum(1 for r in batch_results if r['status'] == '成功')
+                        fail_count = sum(1 for r in batch_results if r['status'] == '失败')
+                        
+                        logger.info(f"批次 {batch_id} 完成处理，成功: {success_count} 个，失败: {fail_count} 个")
+                        
+                        # 删除已完成的任务
+                        del batch_futures[future]
+                        completed_batches += 1
+                        
+                        # 如果还有未处理的批次，启动新批次
+                        next_batch_id = active_batches
+                        if next_batch_id < len(batches):
+                            # 添加批次间随机延迟，减轻服务器负担
+                            delay = random.uniform(inter_batch_delay[0], inter_batch_delay[1])
+                            logger.info(f"等待 {delay:.1f} 秒后启动下一批次")
+                            time.sleep(delay)
+                            
+                            batch_futures[executor.submit(process_account_batch, batches[next_batch_id], next_batch_id)] = next_batch_id
+                            active_batches += 1
+                    
+                    except Exception as e:
+                        logger.error(f"处理批次 {batch_id} 时发生错误: {str(e)}")
+                        del batch_futures[future]
+                        completed_batches += 1
         
         # 记录签到结果
-        if sign_results:
-            log_result(sign_results)
+        if all_results:
+            log_result(all_results)
             logger.info(f"签到结果已记录到 sign.md")
         
+        # 计算总耗时
+        total_time = time.time() - start_time
+        hours, remainder = divmod(total_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        time_str = ""
+        if hours > 0:
+            time_str += f"{int(hours)}小时"
+        if minutes > 0:
+            time_str += f"{int(minutes)}分"
+        time_str += f"{int(seconds)}秒"
+        
         # 打印统计信息
+        success_count = sum(1 for r in all_results if r['status'] == '成功')
+        fail_count = sum(1 for r in all_results if r['status'] == '失败')
+        
         logger.info("所有账号处理完成")
-        logger.info(f"成功：{success_count} 个")
-        logger.info(f"失败：{fail_count} 个")
+        logger.info(f"总耗时: {time_str}")
+        logger.info(f"成功: {success_count} 个")
+        logger.info(f"失败: {fail_count} 个")
         if total_accounts > 0:
-            logger.info(f"成功率：{(success_count/total_accounts*100):.1f}%")
+            logger.info(f"成功率: {(success_count/total_accounts*100):.1f}%")
+        
+        print(f"\n处理完成! 成功: {success_count} 个，失败: {fail_count} 个，总耗时: {time_str}")
+        
     except Exception as e:
         logger.error(f"程序执行出错：{str(e)}")
         raise
