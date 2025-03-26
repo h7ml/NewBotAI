@@ -81,12 +81,11 @@ jobs:
             TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S CST")
             
             # 准备提交信息
-            COMMIT_MSG="feat(sign): 自动签到日志报告"
-  
-            * 更新时间: $TIMESTAMP
-            * 触发事件: ${{ github.event_name }}
-            
-            [skip ci]"
+            TITLE="feat(sign): 自动签到日志报告"
+            UPDATE_TIME="更新时间: $TIMESTAMP"
+            EVENT="触发事件: ${{ github.event_name }}"
+            SKIP_CI="[skip ci]"
+            COMMIT_MSG="$TITLE\n\n- $UPDATE_TIME\n- $EVENT\n\n$SKIP_CI"
             
             # 提交变更
             echo "提交变更..."

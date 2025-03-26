@@ -13,9 +13,21 @@ from pathlib import Path
 from typing import Dict, List
 
 class Logger:
-    def __init__(self, name='NewBotAI'):
+    _instance = None
+    
+    def __new__(cls, name='NewBotAI'):
+        if cls._instance is None:
+            cls._instance = super(Logger, cls).__new__(cls)
+            cls._instance._setup_logger(name)
+        return cls._instance
+    
+    def _setup_logger(self, name):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.INFO)
+        
+        # 检查处理器是否已存在，如果存在则先清除
+        if self.logger.handlers:
+            self.logger.handlers.clear()
         
         # 确保日志目录存在
         log_dir = os.path.join(os.path.dirname(__file__), 'logs')
@@ -38,6 +50,9 @@ class Logger:
         # 添加处理器
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
+    
+    def __init__(self, name='NewBotAI'):
+        pass  # 初始化在__new__中已完成
     
     def info(self, msg):
         self.logger.info(msg)
