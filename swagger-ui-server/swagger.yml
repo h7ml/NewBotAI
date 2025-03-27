@@ -1,0 +1,1623 @@
+openapi: 3.0.3
+info:
+  title: Swagger ChatGPT
+  description: ChatGPT
+  termsOfService: http://swagger.io/terms/
+  contact:
+    email: laidani.dev@gmail.com
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+externalDocs:
+  description: Find out more about ChatGPT
+  url: https://openai.newbotai.cn/api/
+servers:
+  - url: https://openai.newbotai.cn/v1
+tags:
+  - name: Models
+    description: "List and describe the various models available in the API. You can refer to the Models documentation to understand what models are available and the differences between them."
+    externalDocs:
+      description: 'Find out more'
+      url: https://beta.openai.com/docs/models
+  - name: Completions
+    description: "Given a prompt, the model will return one or more predicted completions, and can also return the probabilities of alternative tokens at each position."
+    externalDocs:
+      description: 'Find out more'
+      url: https://beta.openai.com/docs/api-reference/completions
+  - name: Edits
+    description: "Given a prompt and an instruction, the model will return an edited version of the prompt."
+    externalDocs:
+      description: 'Find out more'
+      url: https://beta.openai.com/docs/api-reference/edits
+  - name: Images
+    description: "Given a prompt and/or an input image, the model will generate a new image."
+    externalDocs:
+      description: 'Find out more'
+      url: https://beta.openai.com/docs/guides/images
+  - name: Embeddings
+    description: "Get a vector representation of a given input that can be easily consumed by machine learning models and algorithms."
+    externalDocs:
+      description: 'Find out more'
+      url: https://platform.openai.com/docs/guides/embeddings
+  - name: Files
+    description: "Files are used to upload documents that can be used with features like Fine-tuning."
+    externalDocs:
+      description: 'Find out more'
+      url: https://platform.openai.com/docs/api-reference/files
+  - name : Fine-tunes
+    description: "Manage fine-tuning jobs to tailor a model to your specific training data."
+    externalDocs:
+      description: 'Find out more'
+      url: https://platform.openai.com/docs/guides/fine-tuning
+  - name : Moderations
+    description: "Given a input text, outputs if the model classifies it as violating OpenAI's content policy."
+    externalDocs:
+      description: 'Find out more'
+      url: https://platform.openai.com/docs/guides/moderation
+  
+paths:
+  /models:
+    get:
+      tags:
+        - Models
+      summary: 'List models'
+      description: 'Lists the currently available models, and provides basic information about each one such as the owner and availability.'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/Models'
+        '401':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+  /models/{model}:
+    get:
+      tags:
+        - Models
+      summary: 'Retrieve model'
+      description: 'Retrieves a model instance, providing basic information about the model such as the owner and permissioning.'
+      parameters:
+        - name: model
+          in: path
+          description: 'The ID of the model to use for this request'
+          required: true
+          schema:
+            type: "string"
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/Model'
+        '401':
+          description: 'Error'
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+    delete:
+      tags:
+        - Fine-tunes
+      summary: 'Delete fine-tune model'
+      description: "Delete a fine-tuned model. You must have the Owner role in your organization."
+      parameters:
+        - name: model
+          in: path
+          description: 'The model to delete'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/DeleteFineTuneResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+  /completions:
+    post:
+      tags:
+        - Completions
+      summary: 'Create completion'
+      description: 'Creates a completion for the provided prompt and parameters.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompletionRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/CompletionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+  /edits:
+    post:
+      tags:
+        - Edits
+      summary: Create edit
+      description: Creates a new edit for the provided input, instruction, and parameters.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/EditResponse'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /images/generations:
+    post:
+      tags:
+        - Images
+      summary: Create image
+      description: Creates an image given a prompt.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateImagesRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/ImagesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /images/edits:
+    post:
+      tags:
+        - Images
+      summary: Create image edit
+      description: Creates an edited or extended image given an original image and a prompt.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageEditRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/ImagesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /images/variations:
+    post:
+      tags:
+        - Images
+      summary: Create image variation
+      description: Creates a variation of a given image.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageValidationRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/ImagesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /embeddings:
+    post:
+      tags:
+        - Embeddings
+      summary: Create embeddings
+      description: Creates an embedding vector representing the input text.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmbeddingsRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/EmbeddingsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /files:
+    get:
+      tags:
+        - Files
+      summary: 'List files'
+      description: "Returns a list of files that belong to the user's organization."
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/FileResponse'
+        '401':
+          description: 'Error'
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+
+    post:
+      tags:
+        - Files
+      summary: 'Upload file'
+      description: 'Upload a file that contains document(s) to be used across various endpoints/features. Currently, the size of all the files uploaded by one organization can be up to 1 GB. Please contact us if you need to increase the storage limit.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadFileRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/UploadFileResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+  /files/{file_id}:
+    delete:
+      tags:
+        - Files
+      summary: 'Delete file'
+      description: 'Delete a file.'
+      parameters:
+        - name: file_id
+          in: path
+          description: 'The ID of the file to use for this request'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/DeleteFileResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+    get:
+      tags:
+        - Files
+      summary: 'Retrieve file'
+      description: 'Returns information about a specific file.'
+      parameters:
+        - name: file_id
+          in: path
+          description: 'The ID of the file to use for this request'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/RetrieveFileResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+  /files/{file_id}/content:
+    get:
+      tags:
+        - Files
+      summary: 'Retrieve file content'
+      description: 'Returns the contents of the specified file'
+      parameters:
+        - name: file_id
+          in: path
+          description: 'The ID of the file to use for this request'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+  /fine-tunes:
+    post:
+      tags:
+        - Fine-tunes
+      summary: Create fine-tune
+      description: "Creates a job that fine-tunes a specified model from a given dataset. Response includes details of the enqueued job including job status and the name of the fine-tuned models once complete."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FineTunesRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/FineTunesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags:
+        - Fine-tunes
+      summary: 'List fine-tunes'
+      description: "List your organization's fine-tuning jobs."
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/GetFineTunesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+  /fine-tunes/{fine_tune_id}:
+    get:
+      tags:
+        - Fine-tunes
+      summary: 'Retrieve fine-tune'
+      description: "Gets info about the fine-tune job."
+      parameters:
+        - name: fine_tune_id
+          in: path
+          description: 'The ID of the fine-tune job'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/GetFineTuneResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+  /fine-tunes/{fine_tune_id}/cancel:
+    post:
+      tags:
+        - Fine-tunes
+      summary: 'Cancel fine-tune'
+      description: "Immediately cancel a fine-tune job."
+      parameters:
+        - name: fine_tune_id
+          in: path
+          description: 'The ID of the fine-tune job to cancel'
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/GetFineTuneResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+  /fine-tunes/{fine_tune_id}/events:
+    get:
+      tags:
+        - Fine-tunes
+      summary: 'List fine-tune events'
+      description: "Get fine-grained status updates for a fine-tune job."
+      parameters:
+        - name: fine_tune_id
+          in: path
+          description: 'The ID of the fine-tune job'
+          required: true
+          schema:
+            type: string
+        - name: stream
+          in: query
+          description: 'Whether to stream events for the fine-tune job'
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/FineTuneEventsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+  /moderations:
+    post:
+      tags:
+        - Moderations
+      summary: 'Create moderation'
+      description: "Classifies if text violates OpenAI's Content Policy"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerationRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  $ref: '#/components/schemas/ModerationResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: 'object'
+                items:
+                  $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - api_key: ["Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"]
+components:
+  schemas:
+    Models:
+      type: 'object'
+      properties: 
+        object: 
+          type: "string"
+          description: "Object type ex: list"
+        data: 
+          type: "array"
+          items: 
+            $ref: '#/components/schemas/Model'
+    Model:
+      type: 'object'
+      properties: 
+        id: 
+          type: "string"
+          description: ""
+        object: 
+          type: "string"
+          description: ""
+        created: 
+          type: "number"
+          description: ""
+        owned_by: 
+          type: "string"
+          description: ""
+        permission: 
+          type: "array"
+          items: 
+            type: "object"
+            properties: 
+              id: 
+                type: "string"
+                description: ""
+              object: 
+                type: "string"
+                description: ""
+              created: 
+                type: "number"
+                description: ""
+              allow_create_engine: 
+                type: "boolean"
+                description: ""
+              allow_sampling: 
+                type: "boolean"
+                description: ""
+              allow_logprobs: 
+                type: "boolean"
+                description: ""
+              allow_search_indices: 
+                type: "boolean"
+                description: ""
+              allow_view: 
+                type: "boolean"
+                description: ""
+              allow_fine_tuning: 
+                type: "boolean"
+                description: ""
+              organization: 
+                type: "string"
+                description: ""
+              group: 
+                type: "string"
+                description: ""
+              is_blocking: 
+                type: "boolean"
+                description: ""
+        root: 
+          type: "string"
+          description: ""
+        parent: 
+          type: "string"
+          description: ""
+    CompletionRequest:
+      type: object
+      required:
+      - model
+      properties:
+        model:
+          type: string
+          description: ID of the model to use. You can use the List models API to see all of your available models, or see our Model overview for descriptions of them.
+        prompt:
+          type: string
+          description: The prompt(s) to generate completions for, encoded as a string, array of strings, array of tokens, or array of token arrays.
+        suffix:
+          type: string
+          description: The suffix that comes after a completion of inserted text.
+        max_tokens:
+          type: integer
+          description: The maximum number of tokens to generate in the completion.
+        temperature:
+          type: number
+          description: What sampling temperature to use. Higher values means the model will take more risks.
+        top_p:
+          type: number
+          description: An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass.
+        n:
+          type: integer
+          description: How many completions to generate for each prompt.
+        stream:
+          type: boolean
+          description: Whether to stream back partial progress.
+        logprobs:
+          type: integer
+          description: Include the log probabilities on the logprobs most likely tokens, as well the chosen tokens.
+        echo:
+          type: boolean
+          description: Echo back the prompt in addition to the completion
+        stop:
+          type: string
+          description: Up to 4 sequences where the API will stop generating further tokens.
+        presence_penalty:
+          type: number
+          description: Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.
+        frequency_penalty:
+          type: number
+          description: Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim.
+        best_of:
+          type: integer
+          description: Generates best_of completions server-side and returns the "best" (the one with the highest log probability per token).
+        logit_bias:
+          type: object
+          description: Modify the likelihood of specified tokens appearing in the completion.
+        user:
+          type: string
+          description: A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
+    CompletionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ''
+        object:
+          type: string
+          description: ''
+        created:
+          type: integer
+          description: ''
+        model:
+          type: string
+          description: ''
+        choices:
+          type: array
+          description: ''
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+                description: ''
+              index:
+                type: integer
+                description: ''
+              logprobs:
+                type: string
+                description: ''
+              finish_reason:
+                type: string
+                description: ''
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+              description: ''
+            completion_tokens:
+              type: integer
+              description: ''
+            total_tokens:
+              type: integer
+              description: ''
+    EditRequest:
+      type: object
+      required:
+      - model
+      - instruction
+      properties:
+        model:
+          type: string
+          description: >-
+            ID of the model to use. You can use the text-davinci-edit-001 or code-davinci-edit-001 model with this endpoint.
+        input:
+          type: string
+          default: ""
+          description: The input text to use as a starting point for the edit.
+        instruction:
+          type: string
+          description: The instruction that tells the model how to edit the prompt.
+        n:
+          type: integer
+          default: 1
+          description: How many edits to generate for the input and instruction.
+        temperature:
+          type: number
+          default: 1
+          description: >-
+            What sampling temperature to use. Higher values means the model will take more risks. Try 0.9 for more creative applications, and 0 (argmax sampling) for ones with a well-defined answer.
+        top_p:
+          type: number
+          default: 1
+          description: >-
+            An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered.
+    EditResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: "edit"
+        created:
+          type: integer
+          example: 1589478378
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+                example: "What day of the week is it?"
+              index:
+                type: integer
+                example: 0
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+              example: 25
+            completion_tokens:
+              type: integer
+              example: 32
+            total_tokens:
+              type: integer
+              example: 57
+    ImagesResponse:
+      type: object
+      properties:
+        created:
+          type: integer
+          example: 1589478378
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                example: "https://..."
+    CreateImagesRequest:
+      type: object
+      required:
+      - prompt
+      properties:
+        prompt:
+          type: string
+          description: >-
+            A text description of the desired image(s). The maximum length is 1000 characters.
+        n:
+          type: integer
+          default: 1
+          description: >-
+            The number of images to generate. Must be between 1 and 10.
+        size:
+          type: string
+          default: "1024x1024"
+          description: >-
+            The size of the generated images. Must be one of 256x256, 512x512, or 1024x1024.
+        response_format:
+          type: string
+          default: "url"
+          description: >-
+            The format in which the generated images are returned. Must be one of url or b64_json.
+        user:
+          type: string
+          description: >-
+            A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
+    ImageEditRequest:
+      type: object
+      required:
+        - image
+        - prompt
+      properties:
+        image:
+          type: string
+          description: "The image to edit. Must be a valid PNG file, less than 4MB, and square. If mask is not provided, image must have transparency, which will be used as the mask."
+        mask:
+          type: string
+          description: "An additional image whose fully transparent areas (e.g. where alpha is zero) indicate where image should be edited. Must be a valid PNG file, less than 4MB, and have the same dimensions as image."
+        prompt:
+          type: string
+          description: "A text description of the desired image(s). The maximum length is 1000 characters."
+        n:
+          type: integer
+          description: "The number of images to generate. Must be between 1 and 10."
+          default: 1
+        size:
+          type: string
+          description: "The size of the generated images. Must be one of 256x256, 512x512, or 1024x1024."
+          default: "1024x1024"
+        response_format:
+          type: string
+          description: "The format in which the generated images are returned. Must be one of url or b64_json."
+          default: "url"
+        user:
+          type: string
+          description: "A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse. Learn more."
+    ImageValidationRequest:
+      type: object
+      required:
+      - image
+      properties:
+        image:
+          type: string
+          description: The image to use as the basis for the variation(s). Must be a valid PNG file, less than 4MB, and square.
+        n:
+          type: integer
+          description: The number of images to generate. Must be between 1 and 10.
+          default: 1
+        size:
+          type: string
+          description: The size of the generated images. Must be one of 256x256, 512x512, or 1024x1024.
+          default: 1024x1024
+        response_format:
+          type: string
+          description: The format in which the generated images are returned. Must be one of url or b64_json.
+          default: url
+        user:
+          type: string
+          description: A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
+    EmbeddingsRequest:
+      type: object
+      required:
+      - model
+      - input
+      properties:
+        model:
+          type: string
+          description: ID of the model to use. You can use the List models API to see all of your available models, or see our Model overview for descriptions of them.
+        input:
+          type: array
+          items:
+            type: string
+          description: Input text to get embeddings for, encoded as a string or array of tokens. To get embeddings for multiple inputs in a single request, pass an array of strings or array of token arrays. Each input must not exceed 8192 tokens in length.
+        user:
+          type: string
+          description: A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse. Learn more.
+    EmbeddingsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          description: Type of the response object
+          example: list
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              object:
+                type: string
+                description: Type of the embedded object
+                example: embedding
+              embedding:
+                type: array
+                items:
+                  type: number
+                  format: float
+                description: An array of 1056 floats representing the embedding
+              index:
+                type: integer
+                description: The index of the input
+        model:
+          type: string
+          description: The model used to generate the embedding
+          example: text-embedding-ada-002
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+              description: The number of prompt tokens used in the request
+              example: 8
+            total_tokens:
+              type: integer
+              description: The total number of tokens used in the request
+              example: 8
+    FileResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          description: Type of the response object
+          example: list
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The unique identifier of the file
+                example: file-ccdDZrC3iZVNiQVeEA6Z66wf
+              object:
+                type: string
+                description: Type of the object
+                example: file
+              bytes:
+                type: integer
+                description: The number of bytes in the file
+                example: 175
+              created_at:
+                type: integer
+                description: Timestamp of when the file was created
+                example: 1613677385
+              filename:
+                type: string
+                description: The name of the file
+                example: train.jsonl
+              purpose:
+                type: string
+                description: The purpose of the file
+                example: search
+    UploadFileRequest:
+      type: object
+      required:
+      - file
+      - purpose
+      properties:
+        file:
+          type: string
+          description: Name of the JSON Lines file to be uploaded.
+        purpose:
+          type: string
+          description: The intended purpose of the uploaded documents. Use "fine-tune" for Fine-tuning. This allows us to validate the format of the uploaded file.
+    UploadFileResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID of the uploaded file
+        object:
+          type: string
+          description: Type of the object, always "file"
+        bytes:
+          type: integer
+          description: Size of the file in bytes
+        created_at:
+          type: integer
+          description: Timestamp of the file creation
+        filename:
+          type: string
+          description: Name of the file
+        purpose:
+          type: string
+          description: Purpose of the uploaded file
+    DeleteFileResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID of the deleted file
+        object:
+          type: string
+          description: Type of the object, always "file"
+        deleted:
+          type: boolean
+          description: Flag indicating whether the file was successfully deleted or not
+    RetrieveFileResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID of the uploaded file
+        object:
+          type: string
+          description: Type of the object, always "file"
+        bytes:
+          type: integer
+          description: Size of the file in bytes
+        created_at:
+          type: integer
+          description: Timestamp of the file creation
+        filename:
+          type: string
+          description: Name of the file
+        purpose:
+          type: string
+          description: Purpose of the uploaded file
+    FineTunesRequest:
+      type: object
+      required:
+        - training_file
+      properties:
+        training_file:
+          type: string
+          description: The ID of an uploaded file that contains training data.
+        validation_file:
+          type: string
+          description: The ID of an uploaded file that contains validation data.
+          nullable: true
+        model:
+          type: string
+          description: The name of the base model to fine-tune.
+          default: curie
+        n_epochs:
+          type: integer
+          description: The number of epochs to train the model for.
+          default: 4
+        batch_size:
+          type: integer
+          description: The batch size to use for training.
+          nullable: true
+        learning_rate_multiplier:
+          type: number
+          description: The learning rate multiplier to use for training.
+          nullable: true
+        prompt_loss_weight:
+          type: number
+          description: The weight to use for loss on the prompt tokens.
+          default: 0.01
+        compute_classification_metrics:
+          type: boolean
+          description: If set, we calculate classification-specific metrics using the validation set at the end of every epoch.
+          default: false
+        classification_n_classes:
+          type: integer
+          description: The number of classes in a classification task.
+          nullable: true
+        classification_positive_class:
+          type: string
+          description: The positive class in binary classification.
+          nullable: true
+        classification_betas:
+          type: array
+          items:
+            type: number
+          description: If this is provided, we calculate F-beta scores at the specified beta values.
+          nullable: true
+        suffix:
+          type: string
+          description: A string of up to 40 characters that will be added to your fine-tuned model name.
+          nullable: true
+    FineTunesResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID of the fine-tune object
+        object:
+          type: string
+          description: Type of the object
+        model:
+          type: string
+          description: Model being fine-tuned
+        created_at:
+          type: integer
+          description: Timestamp of creation of the fine-tune object
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              object:
+                type: string
+                description: Type of the object
+              created_at:
+                type: integer
+                description: Timestamp of creation of the fine-tune event
+              level:
+                type: string
+                description: Level of the fine-tune event
+              message:
+                type: string
+                description: Message of the fine-tune event
+          description: List of events related to the fine-tune object
+        fine_tuned_model:
+          type: object
+          description: Fine-tuned model, if any
+        hyperparams:
+          type: object
+          properties:
+            batch_size:
+              type: integer
+              description: Batch size used in fine-tuning
+            learning_rate_multiplier:
+              type: number
+              description: Learning rate multiplier used in fine-tuning
+            n_epochs:
+              type: integer
+              description: Number of epochs used in fine-tuning
+            prompt_loss_weight:
+              type: number
+              description: Prompt loss weight used in fine-tuning
+          description: Hyperparameters used in fine-tuning
+        organization_id:
+          type: string
+          description: ID of the organization associated with the fine-tune object
+        result_files:
+          type: array
+          items:
+            type: object
+            description: Result files, if any
+        status:
+          type: string
+          description: Status of the fine-tune object
+        validation_files:
+          type: array
+          items:
+            type: object
+            description: Validation files, if any
+        training_files:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: ID of the file object
+              object:
+                type: string
+                description: Type of the object
+              bytes:
+                type: integer
+                description: Size of the file in bytes
+              created_at:
+                type: integer
+                description: Timestamp of creation of the file object
+              filename:
+                type: string
+                description: Filename of the file
+              purpose:
+                type: string
+                description: Purpose of the file
+          description: Training files used in fine-tuning
+        updated_at:
+          type: integer
+          description: Timestamp of last update of the fine-tune object
+    GetFineTunesResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: list
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: "ft-AF1WoRqd3aJAHsqc9NY7iL8F"
+              object:
+                type: string
+                example: fine-tune
+              model:
+                type: string
+                example: curie
+              created_at:
+                type: integer
+                example: 1614807352
+              fine_tuned_model:
+                type: object
+              hyperparams:
+                type: object
+                description: ""
+              organization_id:
+                type: string
+                example: "org-..."
+              result_files:
+                type: array
+                items:
+                  type: object
+              status:
+                type: string
+                example: "pending"
+              validation_files:
+                type: array
+                items:
+                  type: object
+              training_files:
+                type: array
+                items:
+                  type: object
+                  description: "..."
+              updated_at:
+                type: integer
+                example: "1614807352"
+    GetFineTuneResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+        model:
+          type: string
+        created_at:
+          type: integer
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              object:
+                type: string
+              created_at:
+                type: integer
+              level:
+                type: string
+              message:
+                type: string
+        fine_tuned_model:
+          type: string
+        hyperparams:
+          type: object
+          properties:
+            batch_size:
+              type: integer
+            learning_rate_multiplier:
+              type: number
+            n_epochs:
+              type: integer
+            prompt_loss_weight:
+              type: number
+        organization_id:
+          type: string
+        result_files:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              object:
+                type: string
+              bytes:
+                type: integer
+              created_at:
+                type: integer
+              filename:
+                type: string
+              purpose:
+                type: string
+        status:
+          type: string
+        validation_files:
+          type: array
+          items:
+            type: object
+        training_files:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              object:
+                type: string
+              bytes:
+                type: integer
+              created_at:
+                type: integer
+              filename:
+                type: string
+              purpose:
+                type: string
+        updated_at:
+          type: integer
+    FineTuneEventsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              object:
+                type: string
+              created_at:
+                type: integer
+              level:
+                type: string
+              message:
+                type: string
+    DeleteFineTuneResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+        deleted:
+          type: boolean
+    ModerationRequest:
+      type: object
+      required:
+        - input
+      properties:
+        input:
+          type: string
+          description: "The input text to classify"
+        model:
+          type: string
+          description: "Two content moderations models are available"
+          enum: [text-moderation-stable, text-moderation-latest]
+          default: text-moderation-latest
+    ModerationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Moderation ID
+        model:
+          type: string
+          description: Model used for moderation
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              categories:
+                type: object
+                properties:
+                  hate:
+                    type: boolean
+                  "hate/threatening":
+                    type: boolean
+                  self-harm:
+                    type: boolean
+                  sexual:
+                    type: boolean
+                  "sexual/minors":
+                    type: boolean
+                  violence:
+                    type: boolean
+                  "violence/graphic":
+                    type: boolean
+              category_scores:
+                type: object
+                properties:
+                  hate:
+                    type: number
+                  "hate/threatening":
+                    type: number
+                  self-harm:
+                    type: number
+                  sexual:
+                    type: number
+                  "sexual/minors":
+                    type: number
+                  violence:
+                    type: number
+                  "violence/graphic":
+                    type: number
+              flagged:
+                type: boolean
+    Error:
+      type: object
+      properties: 
+        error: 
+          type: "object"
+          description: ""
+          properties:
+            message: 
+              type: "string"
+              description: ""
+            type: 
+              type: "string"
+              description: ""
+            param: 
+              type: "string"
+              description: ""
+            code: 
+              type: "string"
+              description: ""
+  securitySchemes:
+    api_key:
+      type: apiKey
+      name: Authorization
+      in: header
+      default: "Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR"

@@ -38,3 +38,5 @@ Thumbs.db
 
 # 临时文件
 cookies_results.json
+
+node_modules/

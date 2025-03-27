@@ -1,0 +1,23 @@
+{
+  "name": "swagger-ui-server",
+  "version": "1.0.0",
+  "description": "Swagger UI服务器",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "swagger-ui-express": "^5.0.0",
+    "swagger-ui-dist": "^5.2.0",
+    "js-yaml": "^4.1.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
