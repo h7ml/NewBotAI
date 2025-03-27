@@ -8,12 +8,13 @@
 [![Stars](https://img.shields.io/github/stars/h7ml/NewBotAI?style=flat-square&logo=github&logoColor=white&color=yellow)](https://github.com/h7ml/NewBotAI/stargazers)
 [![Forks](https://img.shields.io/github/forks/h7ml/NewBotAI?style=flat-square&logo=github&logoColor=white&color=blue)](https://github.com/h7ml/NewBotAI/network)
 [![Issues](https://img.shields.io/github/issues/h7ml/NewBotAI?style=flat-square&logo=github&logoColor=white&color=orange)](https://github.com/h7ml/NewBotAI/issues)
+[![Swagger API](https://img.shields.io/badge/Swagger-API_Docs-85EA2D?style=flat-square&logo=swagger&logoColor=white)](https://swagger-openai.h7ml.cn)
 
 </div>
 
 ## 📌 项目简介
 
-NewBotAI 自动注册与签到脚本帮助用户在 NewBotAI 平台上完成账号批量注册、签到任务和账户管理，让您轻松享受**免费试用988种 AI 模型**的福利。
+NewBotAI 自动注册与签到脚本帮助用户在 NewBotAI 平台上完成账号批量注册、签到任务和账户管理，让您轻松享受**免费试用988种 AI 模型**的福利。详情查看[NewBotAI官网](https://openai.newbotai.cn)
 
 > **平台优势：** 每日签到获得 $50 点数，注册即送 $50 点数，无需额外投入。
 
@@ -24,6 +25,7 @@ NewBotAI 自动注册与签到脚本帮助用户在 NewBotAI 平台上完成账�
 - **自动签到**：智能模拟人工操作，降低风险
 - **日志记录**：详细跟踪签到结果与余额变化
 - **灵活配置**：支持自定义浏览器与命令行管理
+- **API文档**：提供[Swagger UI在线API文档](https://swagger-openai.h7ml.cn)，方便调用与测试
 
 ## 📦 快速开始
 
@@ -117,7 +119,7 @@ python sign.py
 
 ### API密钥管理与使用
 
-成功注册并签到后，可以获取API密钥进行开发调用。所有可用的API密钥会自动记录在`token.md`文件中，格式如下：
+成功注册并签到后，可以获取API密钥进行开发调用。所有可用的API密钥会自动记录在[token.md](token.md)文件中，格式如下：
 
 | 名称 | 密钥 | 状态 | 已用额度 | 剩余额度 | 创建时间 | 过期时间 |
 |------|------|------|----------|----------|----------|----------|
@@ -165,6 +167,19 @@ curl https://openai.newbotai.cn/v1/chat/completions \
 }
 ```
 
+#### 在线API文档
+
+我们提供了完整的API文档，您可以通过以下方式访问：
+
+- **Swagger UI**: [https://swagger-openai.h7ml.cn](https://swagger-openai.h7ml.cn)
+
+Swagger UI提供了交互式的API文档，您可以：
+
+- 浏览所有可用的API端点
+- 查看详细的请求参数和响应格式
+- 使用内置的测试工具发送API请求
+- 自动填充授权信息，简化测试流程
+
 #### 密钥优势
 
 - **无限制额度**：所有密钥都提供无限制的使用额度
@@ -204,6 +219,7 @@ python get_token.py  # 从已注册账号获取API密钥
 - `config.yaml`: 账户配置
 - `accounts.txt`: 账号列表
 - `logs/`: 日志目录
+- `swagger-ui-server/`: API文档服务器
 
 ## 🛠️ 常见问题
 
@@ -218,7 +234,7 @@ python get_token.py  # 从已注册账号获取API密钥
    检查Secret配置是否正确，Actions功能是否启用。
 
 3. **API密钥无法使用？**
-   确保账号已成功签到并获取了API密钥，检查`token.md`文件中密钥的状态是否为"已启用"。
+   确保账号已成功签到并获取了API密钥，检查[token.md](token.md)文件中密钥的状态是否为"已启用"。
 
 ## 🤝 参与贡献
 
