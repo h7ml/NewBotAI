@@ -54,7 +54,7 @@ try {
         // 直接配置初始化授权信息
         onComplete: function() {
           // 预先配置授权信息
-          ui.preauthorizeApiKey("api_key", "Bearer sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR");
+          ui.preauthorizeApiKey("ApiKeyAuth", "sk-VefRuCzVAFDGiH0ep1T0CXeo26DMUu1EtEwh1tIKqd8B7rvR");
         }
       });
       
