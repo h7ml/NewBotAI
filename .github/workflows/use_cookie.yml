@@ -127,10 +127,9 @@ jobs:
             # 获取当前时间戳（东八区）
             TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S CST")
             
-            # 准备提交信息
-            TITLE="feat(cookie): 自动更新Cookie"
-            UPDATE_TIME="更新时间: $TIMESTAMP"
-            EVENT="触发事件: ${{ github.event_name }}"
+            # 准备提交信息，符合Angular规范
+            TYPE="feat"
+            SCOPE="cookie"
             
             # 如果存在cookies_only.json，添加成功率信息
             if [ -f "cookies_only.json" ] && [ -f "config.yaml" ]; then
@@ -138,17 +137,24 @@ jobs:
               SUCCESSFUL_ACCOUNTS=$(grep -o '"id":' cookies_only.json | wc -l)
               SUCCESS_RATE=$((SUCCESSFUL_ACCOUNTS * 100 / TOTAL_ACCOUNTS))
               STATS="账号: $SUCCESSFUL_ACCOUNTS/$TOTAL_ACCOUNTS, 成功率: $SUCCESS_RATE%"
-              SKIP_CI="[skip ci]"
-              COMMIT_MSG="$TITLE ($STATS)\n\n- $UPDATE_TIME\n- $EVENT\n\n$SKIP_CI"
+              SUBJECT="自动更新Cookie ($STATS)"
             else
-              SKIP_CI="[skip ci]"
-              COMMIT_MSG="$TITLE\n\n- $UPDATE_TIME\n- $EVENT\n\n$SKIP_CI"
+              SUBJECT="自动更新Cookie"
             fi
+            
+            # 使用文件方式存储提交信息，确保换行符正确处理
+            echo -e "${TYPE}(${SCOPE}): ${SUBJECT}" > commit_msg.txt
+            echo "" >> commit_msg.txt  # 添加空行
+            echo "- 更新时间: ${TIMESTAMP}" >> commit_msg.txt
+            echo "- 触发事件: ${{ github.event_name }}" >> commit_msg.txt
+            echo "" >> commit_msg.txt  # 添加空行
+            echo "[skip ci]" >> commit_msg.txt
             
             # 提交变更
             echo "提交变更..."
             git add cookies_only.json cookies_results.json logs/cookies.log || true
-            git commit -m "$COMMIT_MSG"
+            git commit --file=commit_msg.txt
+            rm commit_msg.txt  # 清理临时文件
             
             # 尝试推送，如果失败则先拉取最新代码
             echo "推送到远程仓库..."

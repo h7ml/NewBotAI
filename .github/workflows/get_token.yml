@@ -67,13 +67,18 @@ jobs:
           # 获取当前时间戳（东八区）
           TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S CST")
           
-          # 准备提交信息
-          COMMIT_MSG="feat(token): 自动更新 token 数据
-
-          * 更新时间: $TIMESTAMP
-          * 触发事件: ${{ github.event_name }}
+          # 准备提交信息，符合Angular规范
+          TYPE="feat"
+          SCOPE="token"
+          SUBJECT="自动更新API密钥数据"
           
-          [skip ci]"
+          # 使用文件方式存储提交信息，确保换行符正确处理
+          echo -e "${TYPE}(${SCOPE}): ${SUBJECT}" > commit_msg.txt
+          echo "" >> commit_msg.txt  # 添加空行
+          echo "- 更新时间: ${TIMESTAMP}" >> commit_msg.txt
+          echo "- 触发事件: ${{ github.event_name }}" >> commit_msg.txt
+          echo "" >> commit_msg.txt  # 添加空行
+          echo "[skip ci]" >> commit_msg.txt
           
           # 先拉取最新代码，避免冲突
           echo "拉取最新代码..."
@@ -91,7 +96,8 @@ jobs:
           # 提交变更
           echo "提交变更..."
           git add token.md
-          git commit -m "$COMMIT_MSG" || echo "没有新的变更需要提交"
+          git commit --file=commit_msg.txt || echo "没有新的变更需要提交"
+          rm commit_msg.txt  # 清理临时文件
           
           # 尝试推送，如果失败则先拉取最新代码并合并
           echo "推送到远程仓库..."
@@ -121,8 +127,14 @@ jobs:
                   git checkout --ours token.md
                   git add token.md
                 fi
-                # 尝试完成合并
-                git commit -m "Merge remote changes [skip ci]" || echo "无需合并"
+                # 尝试完成合并，使用符合Angular规范的信息
+                echo -e "merge(main): 合并远程变更" > merge_msg.txt
+                echo "" >> merge_msg.txt
+                echo "- 自动解决冲突" >> merge_msg.txt
+                echo "" >> merge_msg.txt
+                echo "[skip ci]" >> merge_msg.txt
+                git commit --file=merge_msg.txt || echo "无需合并"
+                rm merge_msg.txt  # 清理临时文件
               fi
             fi
           done
